@@ -1,0 +1,503 @@
+---
+title: "Spatial Analysis: Review"
+author: "ieConnect"
+date: "10/07/2024"
+format:
+  html:
+    toc: true
+    code-fold: false
+knitr:
+  opts_chunk:
+    warning: false
+    message: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+_The hidden code chunk below downloads the data for this tutorial._
+```{r}
+#| code-fold: true
+
+# Download data
+
+## Load packages
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(geodata)
+library(osmdata)
+library(leaflet)
+
+## Kenya
+COUNTRY_OUT <- here("data", "country.geojson")
+
+if(!file.exists(COUNTRY_OUT)){
+  ken_1_sf <- gadm("KEN", level=1, path = tempdir()) %>% st_as_sf()
+  ken_1_sf <- ken_1_sf %>% st_simplify(dTolerance = 60)
+  ken_1_sf <- ken_1_sf %>%
+    select(NAME_1)
+  
+  st_write(ken_1_sf, COUNTRY_OUT, delete_dsn = T)
+}
+
+## Elevation
+RAST_OUT <- here("data", "elevation.tif")
+
+if(!file.exists(RAST_OUT)){
+  
+  elev_r <- elevation_30s(country="KEN", path=tempdir())
+  
+  writeRaster(elev_r, RAST_OUT)
+}
+
+## Precipiation
+RAST_STACK_OUT <- here("data", "precipitation.tif")
+
+if(!file.exists(RAST_STACK_OUT)){
+  precip_kenya_r <- worldclim_country(var = "prec", res = 10, country = "KEN",
+                                  path = tempdir())
+  
+  writeRaster(precip_kenya_r, RAST_STACK_OUT)
+}
+
+
+## Nairobi
+POLY_OUT <- here("data", "city.geojson")
+
+if(!file.exists(POLY_OUT)){
+  ken_sf <- gadm("KEN", level=2, path = tempdir()) %>% st_as_sf()
+  nbo_sf <- ken_sf %>% filter(NAME_1 %in% "Nairobi")
+  
+  st_write(nbo_sf, POLY_OUT, append = F)
+}
+
+## Roads
+LINE_OUT <- here("data", "roads.geojson")
+
+if(!file.exists(LINE_OUT)){
+  
+  ken_sf <- gadm("KEN", level=2, path = tempdir()) %>% st_as_sf()
+  nbo_sf <- ken_sf %>% filter(NAME_1 %in% "Nairobi")
+  
+  roads_list <- opq(bbox = st_bbox(nbo_sf)) %>%
+    add_osm_feature(key = 'highway', value = c('trunk',
+                                               'motorway',
+                                               'primary',
+                                               'secondary')) %>%
+    osmdata_sf()
+  roads_sf <- roads_list$osm_lines
+  roads_sf <- roads_sf %>% st_intersection(nbo_sf)
+  
+  roads_sf$geom_type <- roads_sf %>% st_geometry_type %>% as.character()
+  roads_sf <- roads_sf[roads_sf$geom_type %in% "LINESTRING",]
+  
+  roads_sf <- roads_sf %>%
+    dplyr::select(osm_id, name, highway)
+  
+  st_write(roads_sf, LINE_OUT, append = F)
+}
+
+## Schools
+POINT_OUT <- here("data", "schools.csv")
+
+if(!file.exists(POINT_OUT)){
+  
+  ken_sf <- gadm("KEN", level=2, path = tempdir()) %>% st_as_sf()
+  nbo_sf <- ken_sf %>% filter(NAME_1 %in% "Nairobi")
+  
+  schools_list <- opq(bbox = st_bbox(nbo_sf)) %>%
+    add_osm_feature(key = 'amenity',
+                    value = 'school') %>%
+    osmdata_sf()
+  
+  schools_sf <- schools_list$osm_points
+  schools_sf <- schools_sf %>% st_intersection(nbo_sf)
+  schools_sf <- schools_sf %>%
+    dplyr::select(osm_id, name)
+  
+  schools_df <- schools_sf %>%
+    st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::rename(longitude = X,
+                  latitude = Y)
+  
+  write_csv(schools_df, POINT_OUT)
+}
+
+```
+
+
+# Spatial Data
+
+## Data Types
+
+There are two main types of spatial data: (1) __vector data__ and (2) __raster data__.
+
+|       | Vector Data | Raster Data|
+| ----- | ----- | ----- |
+| What  | Points, lines, or polygons | Spatially referenced grid |
+| Common file formats | Shapefiles (.shp), geojsons (.geojson) | Geotif (.tif) |
+| Examples | Polygons of countries, polylines of roads, points of schools | Satellite imagery |
+
+<table>
+<tr>
+<td style="text-align: center;"><strong>Vector</strong></td>
+<td style="text-align: center;"><strong>Raster</strong></td>
+</tr>
+<tr>
+<td style="padding-right: 50px;"><img src="img/vector.png" alt="Vector" width="300"></td>
+<td style="padding-left: 50px;"><img src="img/raster.png" alt="Raster" width="300"></td>
+</tr>
+</table>
+
+
+## Coordinate Reference Systems (CRS)
+
+* __Coordinate reference systems (CRS)__ are frameworks that define locations on earth using coordinates.
+
+* For example, the World Bank is at latitude 38.89 and longitude -77.04.
+
+![](img/googlemaps_worldbank.png)
+
+* There are many different coordinate reference systems, which can be grouped into __geographic__ and __projected__ coordinate reference systems. Geographic systems live on a sphere, while projected systems are ``projected'' onto a flat surface.
+
+![](img/geo_proj_crs.png)
+
+### Geographic Coordinate Systems
+
+#### Overview
+
+__Units:__ Defined by latitude and longitude, which measure angles and units are typically in decimal degrees. (Eg, angle is latitude from the equator).
+
+__Latitude & Longitude:__ 
+
+* On a grid X = longitude, Y = latitude; sometimes represented as (longitude, latitude). 
+* Also has become convention to report them in alphabetical order: (latitude, longitude) — such as in Google Maps.
+* Valid range of latitude: -90 to 90
+* Valid range of longitude: -180 to 180
+* __{Tip}__ Latitude sounds (and looks!) like latter
+
+![](img/longlat.png)
+
+#### Distance on a sphere
+
+* At the equator (latitude = 0), a 1 decimal degree longitude distance is about 111km; towards the poles (latitude = -90 or 90), a 1 decimal degree longitude distance converges to 0 km. 
+* We must be careful (ie, use algorithms that account for a spherical earth) to calculate distances! The distance along a sphere is referred to as a [great circle distance](https://en.wikipedia.org/wiki/Great-circle_distance).
+* Multiple options for spherical distance calculations, with trade-off between accuracy & complexity. (See distance section for details).
+
+<table>
+<tr>
+<td style="padding-right: 50px;"><img src="img/longitude_distance.png" alt="Vector" width="300"></td>
+<td style="padding-left: 50px;"><img src="img/greatcircle.png" alt="Raster" width="400"></td>
+</tr>
+</table>
+
+#### Datums
+
+* __Is the earth flat?__ No!
+* __Is the earth a sphere?__ No!
+* __Is the earth a lumpy ellipsoid?__ [Yes!](https://oceanservice.noaa.gov/facts/earth-round.html#:~:text=The%20Earth%20is%20an%20irregularly%20shaped%20ellipsoid.&text=While%20the%20Earth%20appears%20to,unique%20and%20ever%2Dchanging%20shape.)
+
+The earth is a lumpy ellipsoid, a bit flattened at the poles. 
+
+* A [datum](https://www.maptoaster.com/maptoaster-topo-nz/articles/projection/datum-projection.html) is a model of the earth that is used in mapping. One of the most common datums is [WGS 84](https://en.wikipedia.org/wiki/World_Geodetic_System), which is used by the Global Positional System (GPS). 
+* A datum is a reference ellipsoid that approximates the shape of the earth.
+* Other datums exist, and the latitude and longitude values for a specific location will be different depending on the datum.
+
+<table>
+<tr>
+<td style="padding-right: 50px;"><img src="img/datum1.png" alt="Vector" width="300"></td>
+<td style="padding-left: 50px;"><img src="img/datum2.png" alt="Raster" width="300"></td>
+</tr>
+</table>
+
+### Projected Coordinate Systems
+
+Projected coordinate systems project spatial data from a 3D to 2D surface.
+
+__Distortions:__ Projections will distort some combination of distance, area, shape or direction. Different projections can minimize distorting some aspect at the expense of others. 
+
+__Units:__ When projected, points are represented as “northings” and “eastings.” Values are often represented in meters, where northings/eastings are the meter distance from some reference point. Consequently, values can be very large!
+
+__Datums still relevant:__ Projections start from some representation of the earth. Many projections (eg, [UTM](https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system)) use the WGS84 datum as a starting point (ie, reference datum), then project it onto a flat surface. 
+
+<table>
+<tr>
+<td style="text-align: center;">
+<strong><a href="https://www.youtube.com/watch?v=eLqC3FNNOaI" target="_blank">Click here to see why Toby looks so confused</a></strong>
+</td>
+<td style="text-align: center;"><strong>Different Projections</strong></td>
+</tr>
+<tr>
+<td style="padding-right: 50px;"><img src="img/westwing.png" alt="Vector" width="300"></td>
+<td style="padding-left: 50px;"><img src="img/mercator_galls.png" alt="Raster" width="400"></td>
+</tr>
+</table>
+
+### Referencing Coordinate Reference Systems
+
+* There are many ways to reference coordinate systems, some of which are verbose. 
+* __PROJ__ (Library for projections) way of referencing WGS84 `+proj=longlat +datum=WGS84 +no_defs +type=crs`
+* __[EPSG](https://epsg.io/)__ Assigns numeric code to CRSs to make it easier to reference. Here, WGS84 is `4326`. 
+
+### CRS as Units
+
+Whenever have spatial data, need to know which coordinate reference system (CRS) the data is in.
+
+* You wouldn’t say __“I am 5 away”__
+* You would say __“I am 5 [miles / kilometers / minutes / hours] away”__ (units!)
+* Similarly, a “complete” way to describe location would be: I am at __6.51 latitude, 3.52 longitude using the WGS 84 CRS__
+
+# Spatial Analysis in R
+
+_Working with spatial data_
+
+* For vector data, we'll primarily rely on the [sf](https://r-spatial.github.io/sf/) (simple features) package.
+* For raster data, we'll primarily rely on the [terra](https://rspatial.github.io/terra/) package.
+
+__Note:__ Before `sf`, the `sp` package was used; before `terra`, the `raster` package was used. When googling/asking AI about spatial data analysis in R, you may come across these packages. Answers using these packages may be out of date. In particular, the `sp` package handles spatial data notably different than `sf`. 
+
+(`sp` objects are similar to `shapefiles`; a shapefile isn't one file, it's a collection of files---one file contains the geometries (shapes), another contains the CRS, another contains the data, etc. Similarly, `sp` files were a list---one item of the list contained the geometries (shapes), another item contained the CRS, etc. `sf` objects are set up more similar to `geojsons`, where each row of the dataframe has a geometry column).
+
+_Visualizing spatial data_
+
+* For static maps, we'll use [ggplot2](https://ggplot2.tidyverse.org/)
+* For interactive maps, we'll use [leaflet](https://rstudio.github.io/leaflet/)
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(leaflet)
+library(exactextractr)
+library(tidyterra)
+```
+
+# Vector Data
+
+## Polygons
+
+__Load data__
+```{r}
+city_sf <- st_read(here("data", "city.geojson"))
+```
+
+__Functions that work on dataframes to explore data work on sf objects__
+```{r}
+# Examine first few observations
+head(city_sf)
+
+# Number of rows
+nrow(city_sf)
+```
+
+__sf specific functions__
+```{r}
+# Check coordinate reference system
+st_crs(city_sf)
+```
+
+__Area is not a variable, but we can calculate it__
+```{r}
+# Calculate area
+st_area(city_sf)
+
+# Add as variable
+city_sf <- city_sf %>%
+  mutate(area_m2 = st_area(city_sf))
+```
+
+__Static plot using geom_sf__
+
+```{r}
+ggplot() +
+  geom_sf(data = city_sf)
+```
+
+## Polylines
+
+```{r}
+roads_sf <- st_read(here("data", "roads.geojson"))
+
+head(roads_sf)
+
+nrow(roads_sf)
+
+st_length(roads_sf) %>% head()
+
+ggplot() +
+  geom_sf(data = roads_sf)
+```
+
+## Points
+
+__Load dataframe that includes latitude & longitude as variables__
+```{r}
+schools_df <- read_csv(here("data", "schools.csv"))
+
+head(schools_df)
+```
+
+__Convert dataframe to sf object__
+
+* Note that coordiantes is c(longitude, latitude) -- ie, (x, y) format
+* OpenStreetMaps uses the (very) common EPSG:4326
+
+```{r}
+schools_sf <- schools_df %>%
+  st_as_sf(coords = c("longitude", "latitude"),
+           crs = 4326)
+
+head(schools_sf)
+
+ggplot() +
+  geom_sf(data = schools_sf)
+```
+
+## Make better static map
+```{r}
+# Dataframe of N schools per ADM
+adm1_n_schools_df <- schools_sf %>%
+  
+  # Use spatial join to add ADM names to schools
+  st_join(city_sf) %>%
+  
+  # Count schools within ADMs
+  group_by(NAME_2) %>%
+  summarise(n_schools = n()) %>%
+  ungroup() %>%
+  
+  # Remove geometry; convert from sf to dataframe
+  st_drop_geometry()
+
+# Merge data with city
+city_school_sf <- city_sf %>%
+  left_join(adm1_n_schools_df, by = "NAME_2")
+
+# Plot
+ggplot() +
+  geom_sf(data = city_school_sf, 
+          aes(fill = n_schools),
+          color = "black") +
+  scale_fill_distiller(palette = "YlGnBu", 
+                       direction = -1) + 
+  labs(fill = "N\nSchools",
+       title = "Number of schools in Nairobi") +
+  theme_void() +
+  theme(legend.position = c(0.8, 0.3),
+        plot.title = element_text(face = "bold"))
+```
+
+## Interactive Map
+
+We use the `leaflet` package to make interactive maps. [Leaflet](https://leafletjs.com/) is a JavaScript library, but the `leaflet` R package allows making interactive maps using R. Use of leaflet somewhat mimics how we use ggplot.
+
+* Start with `leaflet()` (instead of `ggplot()`)
+* Add spatial layers, defining type of layer (similar to geometries)
+
+We can spent lots of time going over what we can done with leaflet - but that would take up too much time. [This resource](https://rstudio.github.io/leaflet/articles/colors.html) provides helpful tutorials for things like:
+
+* Changing the basemap 
+* Adding colors
+* Adding a legend
+* And much more!
+
+__Basic Map__
+
+```{r}
+leaflet() %>%
+  addTiles() %>% # Basemap
+  addPolygons(data = city_sf)
+```
+
+__Add Multiple Layers__
+
+```{r}
+trunk_sf <- roads_sf %>%
+  filter(highway == "trunk")
+
+leaflet() %>%
+  addTiles() %>% 
+  addPolygons(data = city_sf, fillOpacity = 0.1) %>%
+  addPolylines(data = trunk_sf, color = "red") %>%
+  addCircles(data = schools_sf, color = "black")
+```
+
+## Spatial Operations
+
+```{r}
+# Basically, give tools for gas flaring
+# Buffer
+# st_intersection
+# st_difference
+```
+
+### Buffer
+
+### Overlays
+
+## Exercise
+
+# Raster Data
+
+## Load and explore data
+
+```{r}
+elev_r <- rast(here("data", "elevation.tif"))
+
+elev_r
+```
+
+## Plotting
+
+__Simple plot__
+```{r}
+plot(elev_r)
+```
+
+__Using ggplot__
+
+We use `ggplot` and the `tidyterra` package, which brings `geom_spatraster` for plotting rasters
+
+```{r}
+ggplot() +
+  geom_spatraster(data = elev_r) +
+  scale_fill_distiller(palette = "YlGnBu",
+                       na.value = "white") +
+  labs(color = "Elevation") +
+  theme_void()
+```
+
+## Raster manupulation: using polygons
+
+## Raster algebra
+
+## Zonal Stats
+
+__Using [terra::extract](https://rspatial.github.io/terra/reference/extract.html)__
+```{r}
+ken_sf <- st_read(here("data", "country.geojson"))
+
+ken_sf$evel_v1 <- extract(elev_r, ken_sf, fun = "mean")$KEN_elv_msk 
+```
+
+__Using [exactextractr::exact_extract]()__
+```{r}
+ken_sf$evel_v2 <- exact_extract(elev_r, ken_sf, fun = "mean")
+
+head(ken_sf)
+
+
+
+
+```
+
+## Exercise
+
+* Make of map of Kenya's ADM 1 units that shows the proportion of each unit that is above 1000 meters of elevation
+
+
+
