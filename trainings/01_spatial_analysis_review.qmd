@@ -69,7 +69,7 @@ if(!file.exists(POLY_OUT)){
   ken_sf <- gadm("KEN", level=2, path = tempdir()) %>% st_as_sf()
   nbo_sf <- ken_sf %>% filter(NAME_1 %in% "Nairobi")
   
-  st_write(nbo_sf, POLY_OUT, append = F)
+  st_write(nbo_sf, POLY_OUT, delete_dsn = T)
 }
 
 ## Roads
@@ -95,7 +95,7 @@ if(!file.exists(LINE_OUT)){
   roads_sf <- roads_sf %>%
     dplyr::select(osm_id, name, highway)
   
-  st_write(roads_sf, LINE_OUT, append = F)
+  st_write(roads_sf, LINE_OUT, delete_dsn = T)
 }
 
 ## Schools
@@ -251,7 +251,9 @@ Whenever have spatial data, need to know which coordinate reference system (CRS)
 
 # Spatial Analysis in R
 
-_Working with spatial data_
+## Packages for spatial data
+
+__Packages__
 
 * For vector data, we'll primarily rely on the [sf](https://r-spatial.github.io/sf/) (simple features) package.
 * For raster data, we'll primarily rely on the [terra](https://rspatial.github.io/terra/) package.
@@ -260,11 +262,23 @@ __Note:__ Before `sf`, the `sp` package was used; before `terra`, the `raster` p
 
 (`sp` objects are similar to `shapefiles`; a shapefile isn't one file, it's a collection of files---one file contains the geometries (shapes), another contains the CRS, another contains the data, etc. Similarly, `sp` files were a list---one item of the list contained the geometries (shapes), another item contained the CRS, etc. `sf` objects are set up more similar to `geojsons`, where each row of the dataframe has a geometry column).
 
-_Visualizing spatial data_
+__Spherical Geometry in s2__
+
+Often, spatial data comes in the WGS 84 CRS (EPSG:4326). This is a geographic coordinate reference system that lives on the sphere and where the unit of analysis is decimal degrees. There are multiple approaches for computing distances and areas. 
+
+One approach to stay on a geographic CRS and use more advanced equations that account for being on a sphere. For example, for calculating distances, a number of [great circle distance](https://en.wikipedia.org/wiki/Great-circle_distance#:~:text=The%20great%2Dcircle%20distance%2C%20orthodromic,the%20surface%20of%20the%20sphere.) formulas exist---such as the [Haversine Formula](https://en.wikipedia.org/wiki/Haversine_formula), [Vincenty's Formula](https://en.wikipedia.org/wiki/Vincenty%27s_formulae), etc. The [geosphere](https://github.com/rspatial/geosphere) package facilitates using these. However, these formula can be slow to implement for large numbers of observations.
+
+Another common approach is to project the data (ie, projecting on a 2D surface) using a CRS where the units are meters. However, doing so requires picking a projected CRS that is accurate to our location.
+
+The `sf` package makes it easy to compute distances and areas in units of meters when on a geographic CRS. `sf` uses the [s2](http://s2geometry.io/about/overview) library developed by Google which facilitates quickly computing distances and areas. The s2 library uses a system of spatial grids and relies on formula such as the Haversine and Vincenty's formula for distance calculations; for more information, see [here](http://s2geometry.io/about/overview).
+
+
+## Packages for visualizing spatial data
 
 * For static maps, we'll use [ggplot2](https://ggplot2.tidyverse.org/)
 * For interactive maps, we'll use [leaflet](https://rstudio.github.io/leaflet/)
 
+## Setup 
 
 ```{r}
 library(tidyverse)
@@ -292,12 +306,19 @@ head(city_sf)
 
 # Number of rows
 nrow(city_sf)
+
+# Filter
+city_sf %>%
+  filter(NAME_2 == "Langata")
 ```
 
 __sf specific functions__
 ```{r}
 # Check coordinate reference system
 st_crs(city_sf)
+
+# Check geometry type
+st_geometry_type(city_sf) %>% head()
 ```
 
 __Area is not a variable, but we can calculate it__
@@ -435,7 +456,35 @@ leaflet() %>%
 # st_difference
 ```
 
+### Dissolve
+
 ### Buffer
+
+Buffer trunk roads by 1 km. This will turn the polyine into a polygon.
+
+```{r}
+motor_1km_sf <- roads_sf %>%
+  filter(highway == "motorway") %>%
+  st_buffer(dist = 1000)
+
+ggplot() +
+  geom_sf(data = motor_1km_sf)
+```
+
+### Spatial Intersection
+
+Only keep the parts of `city_sf` that intersect with `trunk_1km_sf` (ie, are within 1km of a trunk road)
+
+```{r}
+city_motor_sf <- st_intersection(city_sf, motor_1km_sf)
+
+ggplot() +
+  geom_sf(data = city_motor_sf)
+```
+
+
+
+### Spatial Difference
 
 ### Overlays
 
@@ -489,15 +538,26 @@ __Using [exactextractr::exact_extract]()__
 ken_sf$evel_v2 <- exact_extract(elev_r, ken_sf, fun = "mean")
 
 head(ken_sf)
+```
 
+## Raster Stack
+```{r}
+precip_r <- rast(here("data", "precipitation.tif"))
 
+precip_r
 
-
+plot(precip_r)
 ```
 
 ## Exercise
 
 * Make of map of Kenya's ADM 1 units that shows the proportion of each unit that is above 1000 meters of elevation
 
+__Solution__
+```{r}
+#| code-fold: true
+
+# Solution
+```
 
 
