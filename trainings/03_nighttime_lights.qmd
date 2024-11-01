@@ -1,0 +1,272 @@
+---
+title: "Nighttime Lights"
+author: "ieConnect"
+date: "10/07/2024"
+format:
+  html:
+    toc: true
+    code-fold: false
+    code-link: true
+knitr:
+  opts_chunk:
+    warning: false
+    message: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+_The hidden code chunk below downloads the data for this tutorial._
+```{r}
+#| code-fold: true
+
+# Download data
+
+## Load packages
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(geodata)
+library(osmdata)
+library(leaflet)
+library(blackmarbler)
+
+## Kenya
+COUNTRY_OUT <- here("data", "country.geojson")
+
+if(!file.exists(COUNTRY_OUT)){
+  ken_1_sf <- gadm("KEN", level=1, path = tempdir()) %>% st_as_sf()
+  ken_1_sf <- ken_1_sf %>% st_simplify(dTolerance = 60)
+  ken_1_sf <- ken_1_sf %>%
+    select(NAME_1)
+  
+  st_write(ken_1_sf, COUNTRY_OUT, delete_dsn = T)
+}
+
+## Nighttime Lights
+BEARER <- read_csv("~/Dropbox/bearer_bm.csv") %>%
+  pull(token)
+
+dir.create(here("data", "ntl_blackmarble"))
+
+ken_sf <- st_read(here("data", "country.geojson"))
+
+r <- bm_raster(roi_sf = ken_sf,
+               product_id = "VNP46A4",
+               date = 2020:2023,
+               bearer = BEARER,
+               output_location_type = "file",
+               file_dir = here("data", "ntl_blackmarble"))
+```
+
+# Setup
+
+We'll work with three main package
+
+```{r}
+library(blackmarbler)
+library(terra)
+library(tidyterra)
+library(exactextractr)
+```
+
+```{r}
+ken_sf <- st_read(here("data", "country.geojson"))
+```
+
+# Download rasters
+
+```{r}
+ken_sf <- st_read(here("data", "country.geojson"))
+
+r <- bm_raster(roi_sf = ken_sf,
+               product_id = "VNP46A4",
+               date = 2023,
+               bearer = BEARER)
+
+```
+
+## Exercise: Make Map
+
+```{r}
+#| eval: false
+
+## Load packages
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(tidyterra)
+library(leaflet)
+library(blackmarbler)
+
+## Load data
+ken_sf   <- st_read(here("data", "country.geojson"))
+
+## Extract NTL
+r <- bm_raster(roi_sf = ken_sf,
+               product_id = "VNP46A4",
+               date = 2023,
+               bearer = BEARER)
+```
+
+__Simple:__ 
+
+1. Make a map of nighttime lights in __Kenya__ using ggplot, including just nighttime lights in Kenya. (Note that the raster includes areas a bit beyond Kenya).
+
+2. Make a map of nighttime lights in __Nairobi__ using ggplot, including just nighttime lights in Kenya.
+
+__Advanced:__
+
+* Make interactive maps of nighttime lights in (1) Kenya and (2) Nairobi.
+
+__Simple solution__
+
+<details>
+<summary>Click to see solution</summary>
+
+```{r}
+#| message: false
+#| warning: false
+#| echo: fenced
+
+#### Kenya
+r_ken <- r %>% crop(ken_sf) %>% mask(ken_sf)
+
+ggplot() +
+  geom_spatraster(data = r_ken) +
+  scale_fill_gradientn(colors = c("black", "yellow", "red"), 
+                       na.value = "white") +
+  labs(fill = "NTL") +
+  theme_void()
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| echo: fenced
+
+#### Nairobi
+nbo_sf <- ken_sf %>%
+  filter(NAME_1 == "Nairobi")
+
+r_nbo <- r %>% crop(nbo_sf) %>% mask(nbo_sf)
+
+ggplot() +
+  geom_spatraster(data = r_nbo) +
+  scale_fill_gradientn(colors = c("black", "yellow", "red"), 
+                       na.value = "white") +
+  labs(fill = "NTL") +
+  theme_void()
+```
+
+</details>
+
+__Advanced solution__
+
+<details>
+<summary>Click to see solution</summary>
+
+```{r}
+#| message: false
+#| warning: false
+#| echo: fenced
+
+# Crop and mask the raster to Kenya's boundaries
+r_ken <- r %>% crop(ken_sf) %>% mask(ken_sf)
+
+# Define a color palette from black to yellow to red
+color_pal <- colorNumeric(palette = c("black", "yellow", "red"), 
+                          domain = values(r_ken), 
+                          na.color = "transparent")
+
+# Create the leaflet map
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addRasterImage(r_ken, 
+                 colors = color_pal, 
+                 opacity = 0.8) %>%
+  addLegend(pal = color_pal, 
+            values = values(r_ken), 
+            title = "NTL", 
+            position = "bottomright")
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| echo: fenced
+
+#### Nairobi
+nbo_sf <- ken_sf %>%
+  filter(NAME_1 == "Nairobi")
+
+r_nbo <- r %>% crop(nbo_sf) %>% mask(nbo_sf)
+
+# Define a color palette from black to yellow to red
+color_pal <- colorNumeric(palette = c("black", "yellow", "red"), 
+                          domain = values(r_nbo), 
+                          na.color = "transparent")
+
+# Create the leaflet map
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addRasterImage(r_nbo, 
+                 colors = color_pal, 
+                 opacity = 0.8) %>%
+  addLegend(pal = color_pal, 
+            values = values(r_nbo), 
+            title = "NTL", 
+            position = "bottomright")
+```
+
+</details>
+
+## Exercise: Extract NTL
+
+Extract the sum of nighttime lights within each administrative division. Make of map of nighttime lights for each administrative division.
+
+```{r}
+#| eval: false
+
+## Load packages
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(tidyterra)
+library(leaflet)
+library(blackmarbler)
+library(exactextractr)
+
+exact_extract(r, ken_sf, "sum")
+
+## Load data
+ken_sf   <- st_read(here("data", "country.geojson"))
+
+## Extract NTL
+r <- bm_raster(roi_sf = ken_sf,
+               product_id = "VNP46A4",
+               date = 2023,
+               bearer = BEARER)
+```
+
+__Solution__
+
+<details>
+<summary>Click to see solution</summary>
+
+```{r}
+ken_sf$ntl_sum <- exact_extract(r, ken_sf, "sum")
+
+ggplot() +
+  geom_sf(data = ken_sf,
+          aes(fill = ntl_sum)) +
+    scale_fill_gradientn(colors = c("black", "yellow", "red"), 
+                       na.value = "white") +
+  labs(fill = "NTL") +
+  theme_void()
+```
+
+</details>
+
