@@ -16,15 +16,46 @@ The course assumes familiarity with R or Python. For an introduction to these pr
 
 ## Training content
 
-__Introduction to Spatial Analysis__
+1. [Introduction to Spatial Analysis](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/01_spatial_analysis_review.html): Provides an overview of working with vector and raster spatial data in R.
+2. [Nighttime Lights for Economic Analysis](https://github.com/ramarty/ntl-training/blob/main/trainings/02_into_nighttime_lights.pdf): Provides and overview of nighttime lights datasets and use of nighttime lights for economic and social science analysis.
+3. [Nighttime Lights Analysis in R](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/03_intro_blackmarbler.html): Provides of overview of querying and analyzing nighttime lights data in R, leveraging the [BlackMarbleR](https://worldbank.github.io/blackmarbler/) package.
 
-_Provides an overview of working with spatial data_
+## NTL Country Diagnostic Code
 
-__Introduction to Nighttime Lights__
+In addition to providing training content, this repository contains code to quickly (1) produce nighttime lights data for any country (at the ADM0 - ADM3 level, and at the city level) and (2) produces analysis of nighttime lights (e.g., trends and maps).
 
-__Advanced Applications__
+* [Code](https://github.com/ramarty/ntl-training/blob/main/ntl-diagnostic-code/ntl-diagnostics.qmd)
 
+The top of the code contains required and optional parameters (see below). After entering the parameters, the code can be rendered. The code produces datasets and summary analysis.
 
+```r
+# REQUIRED PARAMETERS ----------------------------------------------------------
+
+## File locations
+root_dir     <- "~/Desktop"    # Where to put NTL folder
+folder_name  <- "NTL Analysis" # The code will create this folder
+
+## Country
+iso3_code    <- "PRI"          # ISO3 code for country
+
+## Token
+nasa_bearer <- "BEARER-TOKEN"  # NASA Bearer Token
+
+# OPTIONAL PARAMETERS ----------------------------------------------------------
+
+## Months to query
+month_start <- "2024-06-01"    # Start month to query 
+month_end   <- Sys.Date() %>%  # End month to query
+  floor_date(unit = "months") %>% 
+  as.character()  
+
+## Years to Query
+year_start <- 2012
+year_end <- Sys.Date() %>% year()
+
+# Base year for % change maps
+pc_base_year <- 2019 
+```
 
 
 

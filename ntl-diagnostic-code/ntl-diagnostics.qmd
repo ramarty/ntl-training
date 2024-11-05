@@ -18,7 +18,8 @@ knitr:
 library(tidyverse)
 library(lubridate)
 
-# PARAMETERS
+# REQUIRED PARAMETERS ----------------------------------------------------------
+
 ## File locations
 root_dir     <- "~/Desktop"    # Where to put NTL folder
 folder_name  <- "NTL Analysis" # The code will create this folder
@@ -29,17 +30,17 @@ iso3_code    <- "PRI"          # ISO3 code for country
 ## Token
 nasa_bearer <- "BEARER-TOKEN"  # NASA Bearer Token
 
-## Months to query
-month_start <- "2024-06-01"    # Start month to query 
-month_end   <- Sys.Date() %>%  # End month to query
-  floor_date(unit = "months") %>% 
-  as.character()  
-
-month_end <- "2024-12-01"
+# OPTIONAL PARAMETERS ----------------------------------------------------------
 
 ## Years to Query
 year_start <- 2012
 year_end <- Sys.Date() %>% year()
+
+## Months to query
+month_start <- "2012-01-01"    # Start month to query 
+month_end   <- Sys.Date() %>%  # End month to query
+  floor_date(unit = "months") %>% 
+  as.character()  
 
 # Base year for % change maps
 pc_base_year <- 2019 
@@ -335,7 +336,6 @@ saveRDS(gs_5km_sf, file.path(gas_flare_dir, "finaldata", "gas_flare_locations_5k
 saveRDS(gs_10km_sf, file.path(gas_flare_dir, "finaldata", "gas_flare_locations_10km.Rds"))
 ```
 
-
 ## Download Nighttime Lights
 
 ```{r}
@@ -348,6 +348,7 @@ roi_sf <- load_gadm(0)
 dir.create(file.path(ntl_bm_dir, "rasters"))
 dir.create(file.path(ntl_bm_dir, "rasters", "annual"))
 dir.create(file.path(ntl_bm_dir, "rasters", "monthly"))
+dir.create(file.path(ntl_bm_dir, "rasters", "daily"))
 
 r <- bm_raster(roi_sf = roi_sf,
                product_id = "VNP46A4",
@@ -362,7 +363,6 @@ r <- bm_raster(roi_sf = roi_sf,
                bearer = nasa_bearer,
                output_location_type = "file",
                file_dir = file.path(ntl_bm_dir, "rasters", "monthly"))
-
 ```
 
 ## Aggregate Nighttime Lights
