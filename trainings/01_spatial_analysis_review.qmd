@@ -31,7 +31,7 @@ library(osmdata)
 library(leaflet)
 
 ## Kenya
-COUNTRY_OUT <- here("data", "country.geojson")
+COUNTRY_OUT <- here("data", "kenya_adm1.geojson")
 
 if(!file.exists(COUNTRY_OUT)){
   ken_1_sf <- gadm("KEN", level=1, path = tempdir()) %>% st_as_sf()
@@ -1090,7 +1090,7 @@ plot(elev_nbo_mask_r)
 
 __Using [terra::extract](https://rspatial.github.io/terra/reference/extract.html)__
 ```{r}
-ken_sf <- st_read(here("data", "country.geojson"))
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
 
 ken_sf$elev_v1 <- extract(elev_r, ken_sf, fun = "mean")$KEN_elv_msk 
 ```
@@ -1220,7 +1220,7 @@ library(terra)
 library(exactextractr)
 
 ## Load data
-ken_sf <- st_read(here("data", "country.geojson"))
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
 elev_r <- rast(here("data", "elevation.tif"))
 ```
 
@@ -1241,7 +1241,7 @@ library(terra)
 library(exactextractr)
 
 ## Load data
-ken_sf <- st_read(here("data", "country.geojson"))
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
 elev_r <- rast(here("data", "elevation.tif"))
 
 ## Make raster that is binary; True if > 2000 meters
@@ -1342,7 +1342,7 @@ library(terra)
 library(tidyterra)
 
 ## Load data
-ken_sf   <- st_read(here("data", "country.geojson"))
+ken_sf   <- st_read(here("data", "kenya_adm1.geojson"))
 precip_r <- rast(here("data", "precipitation.tif"))
 ```
 
@@ -1363,7 +1363,7 @@ library(terra)
 library(tidyterra)
 
 ## Load data
-ken_sf   <- st_read(here("data", "country.geojson"))
+ken_sf   <- st_read(here("data", "kenya_adm1.geojson"))
 precip_r <- rast(here("data", "precipitation.tif"))
 
 precip_r <- precip_r %>% 
@@ -1403,7 +1403,7 @@ library(terra)
 library(leaflet)
 
 ## Load data
-ken_sf   <- st_read(here("data", "country.geojson"))
+ken_sf   <- st_read(here("data", "kenya_adm1.geojson"))
 precip_r <- rast(here("data", "precipitation.tif"))
 
 ## Crop/Mask to Kenya
