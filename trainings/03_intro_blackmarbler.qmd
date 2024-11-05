@@ -1,5 +1,5 @@
 ---
-title: "Nighttime Lights"
+title: "Nighttime Lights Analysis with BlackMarbleR Package"
 author: "ieConnect"
 date: "10/07/2024"
 format:
@@ -14,6 +14,8 @@ knitr:
 editor_options: 
   chunk_output_type: inline
 ---
+
+This tutorial provides an introduction to using NASA Black Marble nighttime lights data for analysis. The tutorial leverages the BlackMarbleR R package.
 
 _The hidden code chunk below downloads the data for this tutorial._
 ```{r}
@@ -89,59 +91,100 @@ BEARER <- read_csv("~/Dropbox/bearer_bm.csv") %>%
 
 ## Black Marble
 
+__Black Marble Products__
+
 The BlackMarbleR package facilitates retrieving and working with nighttime lights data from [NASA Black Marble](https://blackmarble.gsfc.nasa.gov/). Black Marble produces a number of nighttime light products, from daily, monthly, to annual composites.
 
-![](img/bm_products.png)
-The above image notes that produces are available via the NASA LAADS Archive. Within the archive, raw nighttime lights data are seprated by (1) time and (2) tile. In some cases, our region of interest to examine nighttime lights crosses multiple tiles. For example, 4 tiles comprise Kenya. Consequently, to examine annual trends in nighttime lights for Kenya, for each year we'd need to download 4 tiles and mosaic them together. Doing this manually can be time consuming. The `BlackMarbleR` package does this all for us.
+![](img/bm_products.png){fig-cap="Black Marble Products"}
+
+__Why BlackMarbleR?__
+
+The above image notes that produces are available via the NASA LAADS Archive. Within the archive, raw nighttime lights data are separated by (1) time and (2) tile. The below image shows a screenshot from the archive---showing raw files for January 2024.
 
 ![](img/nasa_laads.png)
 
-## Black Marble: R Package
+In some cases, our region of interest to examine nighttime lights crosses multiple tiles. For example, 4 tiles comprise Kenya. Consequently, to examine annual trends in nighttime lights for Kenya, for each year we'd need to download 4 tiles and mosaic them together. Doing this manually can be time consuming. The `BlackMarbleR` package does this all for us.
+
+## Package overview
+
+The [documentation](https://github.com/worldbank/blackmarbler) for BlackMarbleR contains more extended documentation. This section provides a brief overview of functions and key inputs. 
+
+__Functions__
 
 The `blackmarbler` package contains two main functions:
 
 * `bm_raster` For retrieving rasters of nighttime lights for a given region of interest
 * `bm_extract` For retrieving zonal statistics (sum, mean, etc) of nighttime lights for a given region of interest.
 
+__Required arguments__
+
 Below are the main, required arguments to the functions:
 
-* `roi_sf`: sf object defining region of interest
+* `roi_sf`: sf object defining region of interest (sf polygon)
 * `product_id`: Black Marble product ID
-- `"VNP46A1"`: Daily (raw)
-- `"VNP46A2"`: Daily (corrected)
-- `"VNP46A3"`: Monthly
-- `"VNP46A4"`: Annual
-* `date`: Date of raster data (either one or multiple).
+  - `"VNP46A1"`: Daily (raw)
+  - `"VNP46A2"`: Daily (corrected)
+  - `"VNP46A3"`: Monthly
+  - `"VNP46A4"`: Annual
+* `date`: Date to query (can be one or multiple dates).
 * `bearer`: NASA bearer token. For instructions on how to create a token, see [here](https://github.com/worldbank/blackmarbler#bearer-token-).
 
-Below are select optional arguments
+__Additional arguments__
 
-* `variable`: The variable to use for nighttime lights.
-* `quality_flag_rm`: Quality flag used to set values to NA.
+Below are select optional arguments; for all arguments, see documentation [here](https://github.com/worldbank/blackmarbler).
 
-For examples assessing the quality of nighttime lights, see [here](https://worldbank.github.io/blackmarbler/articles/assess-quality.html).
+* `variable`: The variable to use for nighttime lights. For monthly and annual data (`VNP46A3` and `VNP46A4`) the default is `"NearNadir_Composite_Snow_Free"`. 
+* `quality_flag_rm`: Quality flag used to set values to `NA`. For examples using the quality variable, see [here](https://worldbank.github.io/blackmarbler/articles/assess-quality.html).
+* `output_location_type`: Either `"r_memory"` or `"file"`. 
+  - `"r_memory"`: Data is only load into R memory.
+  - `"file"`: File (raster or dataframe) is saved locally; data is also load into R memory.
+* `file_dir`: When `output_location_type = "file"`, the directory where to save the data.
+* `aggregation_fun`: For `bm_extract`, a vector of functions to aggregate data (default: `"mean"`).
 
 # Setup
 
-We'll work with three main package
+For the exercises, load the following packages.
 
 ```{r}
-library(blackmarbler)
-library(terra)
-library(tidyterra)
-library(exactextractr)
+library(usethis)
+use_course(
+  url = "https://github.com/ramarty/ntl-training",
+  destdir = "YOUR FOLDER PATH HERE"
+)
+
+library(tidyverse)     # R workhorse
+library(blackmarbler)  # Query Black Marble data
+library(terra)         # Working with raster data
+library(tidyterra)     # Additional functions for working with rasters
+library(exactextractr) # Raster zonal stats
+library(leaflet)       # Interactive maps
+library(here)          # Simply finding files
+library(WDI)           # Query WDI data
+
+BEARER <- "DEFINE-BEARER-TOKEN-HERE"
 ```
 
+# Nighttime lights rasters: bm_raster
+
+## Quick Start
+
+### Query 1 Raster
+
+Let's query a raster of nighttime lights in Kenya.
+
+The below code, and all code for this tutorial, sets `output_location_type = "file"` and defines the directory using `file_dir`.
+
+* When `output_location_type = "file"`, the functions check whether data have already been queried. If data have been queried, the functions don't re-download data from the NASA LAADS Archive.
+* When `output_location_type = "r_memory"`, the function always queries data from the NASA LAADS Archive.
+* The tutorial uses `output_location_type = "file"` as querying data can take a little time; in additional, occasionally the NASA LAADS Archive can be down. Consequently, for the sake of the tutorial, `output_location_type` is set to `"file"` to use data already queried. 
+
 ```{r}
-ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
-```
+#| message: false
+#| warning: false
 
-# Nighttime rasters: bm_raster
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"), quiet = T)
 
-```{r}
-ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
-
-r <- bm_raster(roi_sf = ken_sf,
+r <- bm_raster(roi_sf = ken_sf, 
                product_id = "VNP46A4",
                date = 2023,
                bearer = BEARER,
@@ -149,10 +192,53 @@ r <- bm_raster(roi_sf = ken_sf,
                output_location_type = "file",
                file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
 
+## Print
 r
+
+## Plot
+plot(r)
 ```
 
-## Exercise: Make Map
+### Query multiple rasters
+
+Instead of querying data for 1 year, lets query data for multiple years.
+
+```{r}
+#| message: false
+#| warning: false
+
+r <- bm_raster(roi_sf = ken_sf, 
+               product_id = "VNP46A4",
+               date = 2020:2023,
+               bearer = BEARER,
+               
+               output_location_type = "file",
+               file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
+
+## Print
+r
+
+## Plot
+plot(r)
+```
+## Exercise: Make Map Using ggplot
+
+__Simple:__ 
+
+1. Make a map of 2023 nighttime lights in __Kenya__ using ggplot, including just nighttime lights in Kenya. (Note that the raster includes areas a bit beyond Kenya).
+
+2. Make a map of 2023 nighttime lights in __Nairobi__ using ggplot, including just nighttime lights in Kenya.
+
+__Advanced:__
+
+* Make interactive maps of 2023 nighttime lights in (1) Kenya and (2) Nairobi.
+
+__Hints:__
+
+* For static maps, in ggplot, use `geom_spatraster` from the `tidyterra` package.
+* To restrict raster to Kenya's borders, crop and mask the raster.
+
+__Initial Code Setup:__
 
 ```{r}
 #| eval: false
@@ -167,34 +253,16 @@ library(leaflet)
 library(blackmarbler)
 
 ## Load data
-ken_sf   <- st_read(here("data", "kenya_adm1.geojson"))
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"), quiet = T)
 
 ## Extract NTL
-r <- bm_raster(roi_sf = ken_sf,
-               product_id = "VNP46A4",
-               date = 2023,
-               bearer = BEARER,
-               
+r <- bm_raster(..., # ADD CODE HERE
                output_location_type = "file",
                file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
-```
 
-__Simple:__ 
+## Make Map
 
-1. Make a map of nighttime lights in __Kenya__ using ggplot, including just nighttime lights in Kenya. (Note that the raster includes areas a bit beyond Kenya).
-
-2. Make a map of nighttime lights in __Nairobi__ using ggplot, including just nighttime lights in Kenya.
-
-__Advanced:__
-
-* Make interactive maps of nighttime lights in (1) Kenya and (2) Nairobi.
-
-__Hint:__ Within `bm_raster`, use the following code to avoid re-downloading data:
-
-```r
-bm_raster(...,
-output_location_type = "file",
-file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
+# CODE HERE
 ```
 
 __Simple solution__
@@ -206,6 +274,27 @@ __Simple solution__
 #| message: false
 #| warning: false
 #| echo: fenced
+
+## Load packages
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(tidyterra)
+library(leaflet)
+library(blackmarbler)
+
+## Load data
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"), quiet = T)
+
+## Extract NTL
+r <- bm_raster(roi_sf = ken_sf, 
+               product_id = "VNP46A4",
+               date = 2020:2023,
+               bearer = BEARER,
+               
+               output_location_type = "file",
+               file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
 
 #### Kenya
 r_ken <- r %>% crop(ken_sf) %>% mask(ken_sf)
@@ -299,21 +388,11 @@ leaflet() %>%
 
 </details>
 
-## Exercise: Extract NTL
+## Exercise: Zonal Stats of Raster
 
-Extract the sum of nighttime lights within each administrative division. Make of map of nighttime lights, which shows the sum of nighttime lights within each administrative division. 
+Extract the sum of 2023 nighttime lights within each administrative division. Make of map of nighttime lights, which shows the sum of nighttime lights within each administrative division. 
 
-
-__Hints:__ 
-
-1. Use the `exact_extract` function to take the sum of nighttime lights within administrative divisions.
-2. Within `bm_raster`, use the following code to avoid re-downloading data:
-
-```r
-bm_raster(...,
-output_location_type = "file",
-file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
-```
+__Hint:__ Use the `exact_extract` function to take the sum of nighttime lights within administrative divisions.
 
 ```{r}
 #| eval: false
@@ -328,10 +407,8 @@ library(leaflet)
 library(blackmarbler)
 library(exactextractr)
 
-exact_extract(r, ken_sf, "sum")
-
 ## Load data
-ken_sf   <- st_read(here("data", "kenya_adm1.geojson"))
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"), quiet = T)
 
 ## Extract NTL
 r <- bm_raster(roi_sf = ken_sf,
@@ -353,8 +430,32 @@ __Solution__
 #| warning: false
 #| echo: fenced
 
+## Load packages
+library(tidyverse)
+library(here)
+library(sf)
+library(terra)
+library(tidyterra)
+library(leaflet)
+library(blackmarbler)
+library(exactextractr)
+
+## Load data
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"), quiet = T)
+
+## Extract NTL
+r <- bm_raster(roi_sf = ken_sf,
+               product_id = "VNP46A4",
+               date = 2023,
+               bearer = BEARER,
+               
+               output_location_type = "file",
+               file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
+
+## Zonal Stats
 ken_sf$ntl_sum <- exact_extract(r, ken_sf, "sum")
 
+## Map
 ggplot() +
   geom_sf(data = ken_sf,
           aes(fill = ntl_sum)) +
@@ -368,7 +469,9 @@ ggplot() +
 
 # Nighttime zonal stats: bm_extract
 
-The previous example shows downloading a raster using `bm_raster`, then using `exact_extract` to calculate the sum of nighttime lights within a raster. The `bm_extract` function simplifies this step by doing it for us.
+## Overview
+
+The previous example shows downloading a raster using `bm_raster`, then using `exact_extract` to calculate the sum of nighttime lights within a raster. The `bm_extract` function simplifies this process by both quering raster data and computing the zonal stats---outputting a dataframe. In short `bm_extract` avoids having to work with raster data.
 
 The below code shows an example of using `bm_extract` to compute the sum of nighttime lights within Kenya's ADM 1 from 2012 to 2023.
 
@@ -377,7 +480,7 @@ The below code shows an example of using `bm_extract` to compute the sum of nigh
 #| warning: false
 
 ## Load data
-ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"), quiet = T)
 
 ## Extract NTL
 ntl_df <- bm_extract(roi_sf = ken_sf,
@@ -402,22 +505,25 @@ The resulting datafrom contains a few different variables produced by `bm_extrac
 
 ## Exercise: Nighttime lights and GDP
 
-Part 1: Extract the sum of nighttime lights in Kenya from 2012 to 2023. Extract both `NearNadir_Composite_Snow_Free` and `OffNadir_Composite_Snow_Free` (you'll need to make two separate `bm_extract` calls). Plot a scatterplot of these variables.
+Part 1: Extract the sum of nighttime lights in Kenya from 2012 to 2023, extracting both `NearNadir_Composite_Snow_Free` and `OffNadir_Composite_Snow_Free` (you'll need to make two separate `bm_extract` calls). Plot a scatterplot of these variables.
 
-Part 2: What is the correlation between nighttime lights and GDP? Test both near and off nadir. Show trends in both nighttime light variables and GDP.
+Part 2: What is the correlation between GDP and nighttime lights (testing both near- and off-nadir). Show trends in both nighttime light variables and GDP.
 
-
+__Code Setup__
 ```{r}
 #| eval: false
 
+## Load packages
 library(tidyverse)
 library(sf)
 library(blackmarbler)
 library(here)
-library(WDI) # install.packages("WDI)
+library(WDI)
 
-ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
+## Kenya ADM boundaries
+ken_sf <- st_read(here("data", "kenya_adm0.geojson"), quiet = T)
 
+## Query GDP for Kenya from 2012 to 2023
 kenya_gdp_df <- WDI(
   country = "KE",
   indicator = "NY.GDP.MKTP.CD",
@@ -432,20 +538,28 @@ kenya_gdp_df <- WDI(
 ```{r}
 #| message: false
 #| warning: false
-#| echo: fenced
 
+## Load packages
 library(tidyverse)
 library(sf)
 library(blackmarbler)
 library(here)
-library(WDI) # install.packages("WDI)
-library(ggpubr)
+library(WDI)
 
-ken_sf <- st_read(here("data", "kenya_adm0.geojson"))
+## Kenya ADM boundaries
+ken_sf <- st_read(here("data", "kenya_adm0.geojson"), quiet = T)
+
+## Query GDP for Kenya from 2012 to 2023
+kenya_gdp_df <- WDI(
+  country = "KE",
+  indicator = "NY.GDP.MKTP.CD",
+  start = 2012,
+  end = 2023
+)
 
 # Part 1: Compare Near/Off-Nadir -----------------------------------------------
 
-## NTL Data
+## Off-Nadir NTL
 ntl_offnadir_df <- bm_extract(roi_sf = ken_sf,
                               product_id = "VNP46A4",
                               date = 2012:2023,
@@ -460,6 +574,7 @@ ntl_offnadir_df <- ntl_offnadir_df %>%
   dplyr::select(date, ntl_sum) %>%
   dplyr::rename(ntl_sum_offnadir = ntl_sum)
 
+## Near-Nadir NTL
 ntl_nearnadir_df <- bm_extract(roi_sf = ken_sf,
                                product_id = "VNP46A4",
                                date = 2012:2023,
@@ -474,10 +589,11 @@ ntl_nearnadir_df <- ntl_nearnadir_df %>%
   dplyr::select(date, ntl_sum) %>%
   dplyr::rename(ntl_sum_nearnadir = ntl_sum)
 
-## Merge
+## Merge Near- and Off-Nadir
 ken_ntl_df <- ntl_nearnadir_df %>%
   left_join(ntl_offnadir_df, by = "date") 
 
+## Scatterplot
 ken_ntl_df %>%
   ggplot() +
   geom_point(aes(x = ntl_sum_nearnadir,
@@ -485,15 +601,7 @@ ken_ntl_df %>%
 
 # Part 2: Compare GDP ----------------------------------------------------------
 
-## WDI Data
-kenya_gdp_df <- WDI(
-  country = "KE",
-  indicator = "NY.GDP.MKTP.CD",
-  start = 2012,
-  end = 2023
-)
-
-## Merge
+## Merge NTL with GDP
 ken_gdp_ntl_df <- kenya_gdp_df %>%
   left_join(ken_ntl_df, by = c("year" = "date")) 
 
@@ -523,30 +631,32 @@ ken_gdp_ntl_df %>%
 
 </details>
 
-
 ## Exercise: Nighttime light reduction from Hurricane Maria
 
-On September 20, 2017, [Hurricane Maria](https://en.wikipedia.org/wiki/Hurricane_Maria)---then a category 4 hurricane---struck Puerto Rico, killing an estimate 3,000 people and leaving significant damage. In this exercise, we'll use nighttime lights to understand earthquake damages & recovery.
-
-```{r}
-#| eval: false
-library(sf)
-library(blackmarbler)
-library(ggplot2)
-
-pr_sf <- read_sf(here("data", "puero_rico_adm0.geojson"))
-```
+On September 20, 2017, [Hurricane Maria](https://en.wikipedia.org/wiki/Hurricane_Maria)---then a category 4 hurricane---struck Puerto Rico, killing an estimate 3,000 people and leaving significant damage. In this exercise, we'll use nighttime lights to understand earthquake damages & recovery. This exercise has four parts.
 
 ### Part 1: Monthly Trends
 
 Make a figure that shows total monthly nighttime lights in Puerto Rico from January 2017 to December 2018.
 
-__Hint:__ Within `bm_extract`, use the following code to avoid re-downloading data:
+__Code Setup__
 
-```r
-bm_extract(...,
-output_location_type = "file",
-file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm0"))
+```{r}
+#| eval: false
+
+## Load packages
+library(tidyverse)
+library(sf)
+library(blackmarbler)
+library(ggplot2)
+
+## Load Puerto Rico polygon
+pr_sf <- read_sf(here("data", "puero_rico_adm0.geojson"))
+
+## Extract data
+ntl_df <- bm_extract(...,
+                     output_location_type = "file",
+                     file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm0"))
 ```
 
 <details>
@@ -556,6 +666,11 @@ file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm0"))
 #| message: false
 #| warning: false
 #| echo: fenced
+
+library(tidyverse)
+library(sf)
+library(blackmarbler)
+library(ggplot2)
 
 pr_sf <- read_sf(here("data", "puero_rico_adm0.geojson"))
 
@@ -568,7 +683,7 @@ ntl_df <- bm_extract(roi_sf = pr_sf,
                      aggregation_fun = "sum",
                      
                      output_location_type = "file",
-                     file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm1"))
+                     file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm0"))
 
 ntl_df %>%
   ggplot() +
@@ -588,7 +703,7 @@ ntl_df %>%
 
 ### Part 2: Daily Trends
 
-Let's see if we can use the data to understand daily trends in nighttime lights. Use `bm_extract` to extract the daily sum of nighttime nighttime lights in the days before and after the earthquake hit: September 15, 2017 through September 25, 2017. Make two figures:
+Let's see if we can use the data to understand daily trends in nighttime lights. Use `bm_extract` to extract the daily sum of nighttime nighttime lights in the days before and after the hurricane hit: September 15, 2017 through September 25, 2017. Make two figures:
 
 1. Showing daily sum of nighttime lights
 2. Daily number of non-NA pixels across the country
@@ -598,14 +713,26 @@ Based on these figures, can we rely on daily nighttime lights to observe immedia
 __Hints__
 
 1. Because we're using daily nighttime lights, the product ID will be: `"VNP46A2"`
-2. For product ID `"VNP46A2"`, `bm_extract`/`bm_raster` by default uses `Gap_Filled_DNB_BRDF-Corrected_NTL`. This variable fills gaps in daily value (eg, when there is cloud cover) using observations from other days. For this exercise, we're interested in the actual daily values (ie, non-gap filled). Consequently, use variable: `DNB_BRDF-Corrected_NTL`.
+2. For product ID `"VNP46A2"`, `bm_extract`/`bm_raster` by default uses `variable = "Gap_Filled_DNB_BRDF-Corrected_NTL"`. This variable fills gaps in daily value (eg, when there is cloud cover) using observations from other days. For this exercise, we're interested in the actual daily values (ie, non-gap filled). Consequently, use variable: `DNB_BRDF-Corrected_NTL`.
 3. Let's remove low-quality pixels where there could be cloud contamination; for this, set `quality_flag_rm` to `2`.
-4. Within `bm_extract`, use the following code to avoid re-downloading data:
 
-```r
-bm_extract(...,
-output_location_type = "file",
-file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm0"))
+__Code Setup__
+
+```{r}
+#| eval: false
+
+## Load packages
+library(tidyverse)
+library(sf)
+library(blackmarbler)
+
+## Load Puerto Rico polygon
+pr_sf <- read_sf(here("data", "puero_rico_adm0.geojson"))
+
+## Extract data
+ntl_df <- bm_extract(...,
+                     output_location_type = "file",
+                     file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm0"))
 ```
 
 <details>
@@ -615,6 +742,10 @@ file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm0"))
 #| message: false
 #| warning: false
 #| echo: fenced
+
+library(tidyverse)
+library(sf)
+library(blackmarbler)
 
 pr_sf <- read_sf(here("data", "puero_rico_adm0.geojson"))
 
@@ -654,14 +785,25 @@ ntl_df %>%
 
 ### Part 3: Damage Assessment - ADM 1 level
 
-Create a map that shows the percent change in nighttime lights at the ADM2 level, comparing September 2017 and October 2017.
+Create a map that shows the percent change in nighttime lights at the ADM1 level, comparing September 2017 and October 2017.
 
-__Hint:__ Within `bm_extract`, use the following code to avoid re-downloading data:
+__Code Setup__
 
-```r
-bm_extract(...,
-output_location_type = "file",
-file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm1"))
+```{r}
+#| eval: false
+
+## Load packages
+library(tidyverse)
+library(sf)
+library(blackmarbler)
+
+## Load Puerto Rico ADM1 polygon
+pr_sf <- read_sf(here("data", "puero_rico_adm1.geojson"))
+
+## Extract data
+ntl_df <- bm_extract(...,
+                     output_location_type = "file",
+                     file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm1"))
 ```
 
 <details>
@@ -671,6 +813,10 @@ file_dir = here("data", "ntl_blackmarble", "puerto_rico", "extracts", "adm1"))
 #| message: false
 #| warning: false
 #| echo: fenced
+
+library(tidyverse)
+library(sf)
+library(blackmarbler)
 
 pr_sf <- read_sf(here("data", "puero_rico_adm1.geojson"))
 
@@ -714,23 +860,23 @@ __Notes:__
 1. Let's only consider changes above a value of 1, so a pixel experienced an increase in lights if the change was above 1.
 2. Only show pixels that had some baseline level of nighttime lights. Specifically, if a pixel had a value near 0 in September and near 0 in October, the change value should be `NA`---we don't classify this as "no change."
 
-__Hint:__ Within `bm_raster`, use the following code to avoid re-downloading data:
-
-```r
-bm_extract(...,
-output_location_type = "file",
-file_dir = here("data", "ntl_blackmarble", "puerto_rico", "raster"))
-```
+__Code Setup__
 
 ```{r}
 #| eval: false
 
+## Load packages
 library(tidyverse)
-library(tidyterra)
+library(sf)
 library(blackmarbler)
 
+## Load Puerto Rico polygon
 pr_sf <- read_sf(here("data", "puero_rico_adm0.geojson"))
 
+## Extract data
+r <- bm_raster(...,
+               output_location_type = "file",
+               file_dir = here("data", "ntl_blackmarble", "puerto_rico", "raster"))
 ```
 
 <details>
@@ -785,4 +931,4 @@ ggplot() +
 
 </details>
 
-# When to use `bm_raster` vs `bm_extract`
+
