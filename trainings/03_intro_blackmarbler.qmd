@@ -143,15 +143,16 @@ Below are select optional arguments; for all arguments, see documentation [here]
 
 # Setup
 
-For the exercises, load the following packages.
+Run the following code, which will download the github repo.
 
 ```{r}
 library(usethis)
-use_course(
-  url = "https://github.com/ramarty/ntl-training",
-  destdir = "YOUR FOLDER PATH HERE"
-)
+use_course(url = "https://github.com/ramarty/ntl-training/archive/main.zip")
+```
 
+For the exercises, load the following packages and define your BEARER token.
+
+```{r}
 library(tidyverse)     # R workhorse
 library(blackmarbler)  # Query Black Marble data
 library(terra)         # Working with raster data
