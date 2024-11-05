@@ -33,6 +33,8 @@ library(osmdata)
 library(leaflet)
 library(blackmarbler)
 library(DT)
+library(janitor)
+library(readxl)
 
 #### Kenya ADM 0
 COUNTRY_OUT <- here("data", "kenya_adm0.geojson")
@@ -58,6 +60,31 @@ if(!file.exists(COUNTRY_OUT)){
   st_write(ken_1_sf, COUNTRY_OUT, delete_dsn = T)
 }
 
+#### Nigeria ADM 0
+COUNTRY_OUT <- here("data", "nigeria_adm0.geojson")
+
+if(!file.exists(COUNTRY_OUT)){
+  ken_1_sf <- gadm("NGA", level=0, path = tempdir()) %>% st_as_sf()
+  ken_1_sf <- ken_1_sf %>% st_simplify(dTolerance = 60)
+  ken_1_sf <- ken_1_sf %>%
+    select(COUNTRY)
+  
+  st_write(ken_1_sf, COUNTRY_OUT, delete_dsn = T)
+}
+
+#### Nigeria ADM 1
+COUNTRY_OUT <- here("data", "nigeria_adm1.geojson")
+
+if(!file.exists(COUNTRY_OUT)){
+  ken_1_sf <- gadm("NGA", level=1, path = tempdir()) %>% st_as_sf()
+  ken_1_sf <- ken_1_sf %>% st_simplify(dTolerance = 60)
+  ken_1_sf <- ken_1_sf %>%
+    select(NAME_1)
+  
+  st_write(ken_1_sf, COUNTRY_OUT, delete_dsn = T)
+}
+
+
 #### Puerto Rico: ADM 1
 COUNTRY_OUT <- here("data", "puero_rico_adm0.geojson")
 
@@ -82,9 +109,91 @@ if(!file.exists(COUNTRY_OUT)){
   st_write(pr_1_sf, COUNTRY_OUT, delete_dsn = T)
 }
 
-#### Nighttime Lights
+#### Gas Flaring
+
+## Download data
+# https://datacatalog.worldbank.org/search/dataset/0037743
+if(!file.exists(here("gas_flaring", "rawdata", "viirs_global_flaring_2017.xlsx"))){
+  download.file(url = "https://datacatalogfiles.worldbank.org/ddh-published/0037743/DR0045623/viirs_global_flaring_d.7_slope_0.029353_2017_web_v1.xlsx?versionId=2023-01-18T20:03:32.2273754Z", 
+                destfile = here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2017.xlsx"), 
+                mode = "wb")
+}
+
+if(!file.exists(here("gas_flaring", "rawdata", "viirs_global_flaring_2018.xlsx"))){
+  download.file(url = "https://datacatalogfiles.worldbank.org/ddh-published/0037743/DR0045622/viirs_global_flaring_d.7_slope_0.029353_2018_web.xlsx?versionId=2023-01-18T20:02:43.3965005Z", 
+                destfile = here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2018.xlsx"), 
+                mode = "wb")
+}
+
+if(!file.exists(here("gas_flaring", "rawdata", "viirs_global_flaring_2019.xlsx"))){
+  download.file(url = "https://datacatalogfiles.worldbank.org/ddh-published/0037743/DR0045621/viirs_global_flaring_d.7_slope_0.029353_2019_web_v20201114-3.xlsx?versionId=2023-01-18T20:03:09.2456111Z", 
+                destfile = here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2019.xlsx"), 
+                mode = "wb")
+}
+
+if(!file.exists(here("gas_flaring", "rawdata", "viirs_global_flaring_2020.xlsx"))){
+  download.file(url = "https://datacatalogfiles.worldbank.org/ddh-published/0037743/DR0084248/2020%20Global%20Gas%20Flaring%20Volumes.xlsx?versionId=2023-01-18T20:03:53.8309309Z", 
+                destfile = here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2020.xlsx"), 
+                mode = "wb")
+}
+
+if(!file.exists(here("gas_flaring", "rawdata", "viirs_global_flaring_2021.xlsx"))){
+  download.file(url = "https://datacatalogfiles.worldbank.org/ddh-published/0037743/DR0087112/2021%20Global%20Gas%20Flaring%20Volumes.xlsx?versionId=2023-01-18T20:02:21.4951166Z", 
+                destfile = here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2021.xlsx"), 
+                mode = "wb")
+}
+
+#### Append data
+iso3_code <- "NGA"
+
+clean_data <- function(x){
+  x %>% 
+    clean_names() %>% 
+    dplyr::filter(iso_code %in% iso3_code)
+} 
+
+df_2021 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2021.xlsx"), 2) %>% clean_data()
+
+df_2020_1 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2020.xlsx"), 1) %>% clean_data()
+df_2020_2 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2020.xlsx"), 2) %>% clean_data()
+df_2020_3 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2020.xlsx"), 3) %>% clean_data()
+
+df_2019 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2019.xlsx"), 1) %>% clean_data()
+
+df_2018_4 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2018.xlsx"), 4) %>% clean_data()
+df_2018_5 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2018.xlsx"), 5) %>% clean_data()
+df_2018_6 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2018.xlsx"), 6) %>% clean_data()
+
+df_2017_1 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2017.xlsx"), 1) %>% clean_data()
+df_2017_2 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2017.xlsx"), 2) %>% clean_data()
+df_2017_3 <- read_xlsx(here("data", "gas_flaring", "rawdata", "viirs_global_flaring_2017.xlsx"), 3) %>% clean_data()
+
+gs_df <- bind_rows(
+  df_2021,
+  df_2020_1,
+  df_2020_2,
+  df_2020_3,
+  df_2019,
+  df_2018_4,
+  df_2018_5,
+  df_2018_6,
+  df_2017_1,
+  df_2017_2,
+  df_2017_3
+)
+
+gs_df <- gs_df %>%
+  dplyr::select(latitude, longitude) %>%
+  distinct() %>%
+  dplyr::mutate(uid = 1:n())
+
+write_csv(gs_df, here("data", "gas_flaring", "finaldata", "nga_gas_flare.csv"))
+
+#### Nighttime Lights Token
 BEARER <- read_csv("~/Dropbox/bearer_bm.csv") %>%
   pull(token)
+
+
 ```
 
 # BlackMarbleR Package
@@ -146,6 +255,8 @@ Below are select optional arguments; for all arguments, see documentation [here]
 Run the following code, which will download the github repo.
 
 ```{r}
+#| eval: false
+
 library(usethis)
 use_course(url = "https://github.com/ramarty/ntl-training/archive/main.zip")
 ```
@@ -153,6 +264,8 @@ use_course(url = "https://github.com/ramarty/ntl-training/archive/main.zip")
 For the exercises, load the following packages and define your BEARER token.
 
 ```{r}
+#| eval: false
+
 library(tidyverse)     # R workhorse
 library(blackmarbler)  # Query Black Marble data
 library(terra)         # Working with raster data
@@ -222,7 +335,8 @@ r
 ## Plot
 plot(r)
 ```
-## Exercise: Make Map Using ggplot
+
+## Exercise: Make Better Maps of Rasters
 
 __Simple:__ 
 
@@ -464,6 +578,97 @@ ggplot() +
                        na.value = "white") +
   labs(fill = "NTL") +
   theme_void()
+```
+
+</details>
+
+## Exercise: Nighttime lights in and excluding gas flaring locations
+
+In this exercise, we'll examine the sum of nighttime near and excluding gas flaring locations in Nigeria. Part 1 (load and prepping data), part 2 (making a map of NTL with gas flaring locations) are shown below. The exercise for you to complete is part 3: determining the proportion of lights within 10km of gas flaring locations.
+
+### Part 1: Load and prep data
+
+```{r}
+
+## Load packages
+library(tidyverse)
+library(sf)
+library(blackmarbler)
+library(ggplot2)
+
+## Load Nigeria polygon
+nga_sf <- st_read(here("data", "nigeria_adm0.geojson"), quiet = T)
+
+## Query NTL in 2023
+r <- bm_raster(roi_sf = nga_sf,
+               product_id = "VNP46A4",
+               date = 2023,
+               bearer = BEARER,
+               
+               output_location_type = "file",
+               file_dir = here("data", "ntl_blackmarble", "nigeria", "raster"))
+
+## Load and prep gas flares
+gf_df <- read_csv(here("data", "gas_flaring", "finaldata", "nga_gas_flare.csv"))
+
+gf_sf <- gf_df %>% 
+  st_as_sf(coords = c("longitude", "latitude"), 
+           crs = 4326) %>%
+  st_buffer(dist = 10*1000)
+
+head(gf_sf)
+```
+
+### Part 2: Map of gas flaring locations
+
+```{r}
+## Restrict NTL raster to Nigeria
+r <- r %>% crop(nga_sf) %>% mask(nga_sf)
+
+gf_u_sf <- gf_sf %>%
+  st_union()
+
+ggplot() +
+  geom_spatraster(data = log(r+1)) +
+  geom_sf(data = gf_u_sf,
+          aes(color = "Gas Flaring"),
+          fill = NA) +
+  scale_fill_gradientn(colors = c("black", "yellow", "red"), 
+                       na.value = "white") +
+  scale_color_manual(values = "blue") +
+  labs(fill = "NTL\n(logged)",
+       color = NULL) +
+  theme_void()
+```
+
+### Part 3: Sum of lights in/excluding gas flaring locations
+
+Determine the sum of lights (1) within 10km of gas flaring locations and (2) excluding 10km of gas flaring locations. What is the proportion of total lights within 10km of gas flaring locations?
+
+__Hint:__ From the terra package, the `mask()` and `mask(..., inverse = T)` functions will be helpful.
+
+<details>
+<summary>Click to see solution</summary>
+
+```{r}
+## Mask
+r_gf   <- r %>% mask(gf_sf)
+r_nogf <- r %>% mask(gf_sf, inverse = T)
+
+## Plot to check mask
+plot(r_nogf)
+plot(r_gf)
+
+## Calculate sum of lights
+ntl_excl_gasflare <- exact_extract(r_nogf, nga_sf, "sum")
+ntl_gasflare      <- exact_extract(r_gf,   nga_sf, "sum")
+
+cat("NTL Excluding Gas Flaring Locations:", 
+    ntl_excl_gasflare)
+cat("NTL Within Gas Flaring Locations:", 
+    ntl_gasflare)
+cat("Prop. of NTL within 10km of Gas Flaring Locations:", 
+    (ntl_gasflare + ntl_excl_gasflare))
 ```
 
 </details>
@@ -931,5 +1136,6 @@ ggplot() +
 ```
 
 </details>
+
 
 
