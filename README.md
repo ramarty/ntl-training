@@ -16,7 +16,7 @@ The course assumes familiarity with R or Python. For an introduction to these pr
 
 ## Training content
 
-1. [Introduction to Spatial Analysis](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/01_spatial_analysis_review.html): Provides an overview of working with vector and raster spatial data in R.
+1. __Introduction to Spatial Analysis__ [[R](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/01_spatial_analysis_review.html)|_Python coming soon!_]: Provides an overview of working with vector and raster spatial data in R.
 2. [Nighttime Lights for Economic Analysis](https://github.com/ramarty/ntl-training/blob/main/trainings/02_into_nighttime_lights.pdf): Provides and overview of nighttime lights datasets and use of nighttime lights for economic and social science analysis.
 3. [Nighttime Lights Analysis in R](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/03_intro_blackmarbler.html): Provides of overview of querying and analyzing nighttime lights data in R, leveraging the [BlackMarbleR](https://worldbank.github.io/blackmarbler/) package.
 

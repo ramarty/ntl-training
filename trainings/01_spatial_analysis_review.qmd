@@ -129,6 +129,16 @@ if(!file.exists(POINT_OUT)){
 
 ```
 
+# Setup
+
+Run the following code, which will download the github repo.
+
+```{r}
+#| eval: false
+
+library(usethis)
+use_course(url = "https://github.com/ramarty/ntl-training/archive/main.zip")
+```
 
 # Spatial Data
 
@@ -1064,9 +1074,7 @@ ggplot() +
   theme_void()
 ```
 
-## Raster manupulation based on polygons
-
-### Cropping
+## Cropping
 
 Cropping cuts the polygon based on the bounding box of a polygon. Below, we crop the elevation raster to Nairobi.
 
@@ -1076,7 +1084,7 @@ elev_nbo_r <- crop(elev_r, city_sf)
 plot(elev_nbo_r)
 ```
 
-### Masking
+## Masking
 
 Masking sets values to `NA` that are outside of a polygon (or, using the inverse of a mask, setting values to `NA` that are within a polygon).
 
