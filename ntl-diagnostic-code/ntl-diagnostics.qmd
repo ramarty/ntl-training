@@ -19,15 +19,8 @@ library(tidyverse)
 library(lubridate)
 
 # REQUIRED PARAMETERS ----------------------------------------------------------
-
-## File locations
-root_dir     <- "~/Desktop"    # Where to put NTL folder
-folder_name  <- "NTL Analysis" # The code will create this folder
-
-## Country
-iso3_code    <- "PRI"          # ISO3 code for country
-
-## Token
+proj_dir <- "~/Desktop/NTL Analysis" # Directory for data; code will create this folder
+iso3_code    <- "NGA"          # ISO3 code for country
 nasa_bearer <- "BEARER-TOKEN"  # NASA Bearer Token
 
 # OPTIONAL PARAMETERS ----------------------------------------------------------
@@ -91,8 +84,6 @@ library(haven)
 iso2_code <- countrycode(iso3_code, origin = "iso3c", destination = "iso2c")
 
 ## Filepath
-proj_dir       <- file.path("~/Desktop", folder_name)
-
 data_dir       <- file.path(proj_dir, "data")
 ntl_bm_dir     <- file.path(data_dir, "Nighttime Lights BlackMarble")
 gadm_dir       <- file.path(data_dir, "GADM")
@@ -1020,6 +1011,7 @@ if("adm2" %in% gadm_names){
   
   ntl_df %>%
     dplyr::filter(date >= ymd("2020-01-01")) %>%
+    dplyr::mutate(date = ymd(date)) %>%
     filter(NAME_2 %in% top_adm) %>%
     ggplot() +
     geom_col(aes(x = date, y = ntl_sum),
