@@ -568,7 +568,7 @@ r <- bm_raster(roi_sf = ken_sf,
                file_dir = here("data", "ntl_blackmarble", "kenya", "raster"))
 
 ## Zonal Stats
-ken_sf$ntl_sum <- exact_extract(r, ken_sf, "sum")
+ken_sf$ntl_sum <- exact_extract(r, ken_sf, "sum", progress = F)
 
 ## Map
 ggplot() +
@@ -660,8 +660,8 @@ plot(r_nogf)
 plot(r_gf)
 
 ## Calculate sum of lights
-ntl_excl_gasflare <- exact_extract(r_nogf, nga_sf, "sum")
-ntl_gasflare      <- exact_extract(r_gf,   nga_sf, "sum")
+ntl_excl_gasflare <- exact_extract(r_nogf, nga_sf, "sum", progress = F)
+ntl_gasflare      <- exact_extract(r_gf,   nga_sf, "sum", progress = F)
 
 cat("NTL Excluding Gas Flaring Locations:", 
     ntl_excl_gasflare)
