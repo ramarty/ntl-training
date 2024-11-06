@@ -307,7 +307,7 @@ library(leaflet)
 
 __Load data__
 ```{r}
-city_sf <- st_read(here("data", "city.geojson"))
+city_sf <- st_read(here("data", "city.geojson"), quiet = T)
 ```
 
 __Functions that work on dataframes to explore data work on sf objects__
@@ -352,7 +352,7 @@ ggplot() +
 ### Polylines
 
 ```{r}
-roads_sf <- st_read(here("data", "roads.geojson"))
+roads_sf <- st_read(here("data", "roads.geojson"), quiet = T)
 
 head(roads_sf)
 
@@ -679,7 +679,7 @@ library(here)
 library(sf)
 
 ## Load data
-roads_sf   <- st_read(here("data", "roads.geojson"))
+roads_sf   <- st_read(here("data", "roads.geojson"), quiet = T)
 schools_df <- read_csv(here("data", "schools.csv"))
 ```
 
@@ -699,7 +699,7 @@ library(here)
 library(sf)
 
 ## Load data
-roads_sf   <- st_read(here("data", "roads.geojson"))
+roads_sf   <- st_read(here("data", "roads.geojson"), quiet = T)
 schools_df <- read_csv(here("data", "schools.csv"))
 
 ## Convert schools to sf object
@@ -736,7 +736,7 @@ library(sf)
 library(purrr)
 
 ## Load data
-roads_sf   <- st_read(here("data", "roads.geojson"))
+roads_sf   <- st_read(here("data", "roads.geojson"), quiet = T)
 schools_df <- read_csv(here("data", "schools.csv"))
 
 ## Convert schools to sf object
@@ -787,8 +787,8 @@ library(terra)
 library(exactextractr)
 
 ## Load data
-nbo_sf   <- st_read(here("data", "city.geojson"))
-roads_sf <- st_read(here("data", "roads.geojson"))
+nbo_sf   <- st_read(here("data", "city.geojson"), quiet = T)
+roads_sf <- st_read(here("data", "roads.geojson"), quiet = T)
 ```
 
 __Solution: Simple__
@@ -808,8 +808,8 @@ library(terra)
 library(exactextractr)
 
 ## Load data
-nbo_sf  <- st_read(here("data", "city.geojson"))
-roads_sf <- st_read(here("data", "roads.geojson"))
+nbo_sf  <- st_read(here("data", "city.geojson"), quiet = T)
+roads_sf <- st_read(here("data", "roads.geojson"), quiet = T)
 
 ## Filter
 kas_sf <- nbo_sf %>%
@@ -843,8 +843,8 @@ library(here)
 library(sf)
 
 ## Load data
-nbo_sf  <- st_read(here("data", "city.geojson"))
-roads_sf <- st_read(here("data", "roads.geojson"))
+nbo_sf  <- st_read(here("data", "city.geojson"), quiet = T)
+roads_sf <- st_read(here("data", "roads.geojson"), quiet = T)
 
 ## Define function to calculate length of roads for each row in nbo_sf
 calc_rd_length <- function(nbo_sf, roads_sf){
@@ -888,8 +888,8 @@ library(here)
 library(sf)
 
 ## Load data
-city_sf    <- st_read(here("data", "city.geojson"))
-schools_df <- st_read(here("data", "schools.csv"))
+city_sf    <- st_read(here("data", "city.geojson"), quiet = T)
+schools_df <- read_csv(here("data", "schools.csv"))
 ```
 
 __Simple solution__
@@ -908,8 +908,8 @@ library(here)
 library(sf)
 
 ## Load data
-city_sf    <- st_read(here("data", "city.geojson"))
-schools_df <- st_read(here("data", "schools.csv"))
+city_sf    <- st_read(here("data", "city.geojson"), quiet = T)
+schools_df <- read_csv(here("data", "schools.csv"))
 
 ## Convert schools to sf
 schools_sf <- st_as_sf(schools_df,
@@ -967,8 +967,8 @@ library(sf)
 library(leaflet)
 
 ## Load data
-city_sf    <- st_read(here("data", "city.geojson"))
-schools_df <- st_read(here("data", "schools.csv"))
+city_sf    <- st_read(here("data", "city.geojson"), quiet = T)
+schools_df <- read_csv(here("data", "schools.csv"))
 
 ## Convert schools to sf
 schools_sf <- st_as_sf(schools_df,
@@ -1078,7 +1078,9 @@ plot(elev_nbo_r)
 
 ### Masking
 
-Masking sets values to `NA` that are outside of a polygon. When we cropped (above), we removed raster cells outside of the _bounding box_ of Nairobi. Now, we set values to `NA` that are outside of the _polygon_ of Nairobi.
+Masking sets values to `NA` that are outside of a polygon (or, using the inverse of a mask, setting values to `NA` that are within a polygon).
+
+__Mask Example 1:__ When we cropped (above), we removed raster cells outside of the _bounding box_ of Nairobi. Now, we set values to `NA` that are outside of the _polygon_ of Nairobi.
 
 ```{r}
 elev_nbo_mask_r <- mask(elev_nbo_r, city_sf)
@@ -1086,11 +1088,41 @@ elev_nbo_mask_r <- mask(elev_nbo_r, city_sf)
 plot(elev_nbo_mask_r)
 ```
 
+__Mask Example 2:__ Let's only keep nighttime light values within 1 km of select schools.
+
+```{r}
+schools_df <- read_csv(here("data", "schools.csv"))[c(1,1000,2000,3000),]
+schools_sf <- st_as_sf(schools_df,
+                       coords = c("longitude", "latitude"),
+                       crs = 4326) %>%
+  st_buffer(dist = 1000)
+
+elev_nbo_schools_r <- mask(elev_nbo_mask_r, schools_sf)
+
+ggplot() +
+  geom_spatraster(data = elev_nbo_schools_r) +
+  geom_sf(data = city_sf, color = "black", fill = NA) +
+  geom_sf(data = schools_sf, color = "red", fill = NA) +
+  theme_void()
+```
+
+__Mask Example 3:__ Let's exclude nighttime light values that are within 1km of select schools.
+
+```{r}
+elev_nbo_excl_schools_r <- mask(elev_nbo_mask_r, schools_sf, inverse = T)
+
+ggplot() +
+  geom_spatraster(data = elev_nbo_excl_schools_r) +
+  geom_sf(data = city_sf, color = "black", fill = NA) +
+  geom_sf(data = schools_sf, color = "red", fill = NA) +
+  theme_void()
+```
+
 ## Zonal Stats
 
 __Using [terra::extract](https://rspatial.github.io/terra/reference/extract.html)__
 ```{r}
-ken_sf <- st_read(here("data", "kenya_adm1.geojson"))
+ken_sf <- st_read(here("data", "kenya_adm1.geojson"), quiet = T)
 
 ken_sf$elev_v1 <- extract(elev_r, ken_sf, fun = "mean")$KEN_elv_msk 
 ```
