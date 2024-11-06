@@ -8,7 +8,7 @@ This material was jointly developed by the [ieConnect](https://www.worldbank.org
 
 Nighttime lights have become a widely used data sources, including in the social sciencies literature. [Henderson, Storeygard, and Weil's](https://www.aeaweb.org/articles?id=10.1257/aer.102.2.994) seminal 2012 paper illustrated the use of leveraging nighttime lights to measure economic growth. Their paper helped launch the use of nighttime lights in a variety of applications; a Google scholar search of ["nighttime lights economics"](https://scholar.google.com/scholar?hl=en&as_sdt=0%2C9&q=nighttime+lights+economics&btnG=) brings over 40,000 responses. In addition to leverage nighttime lights as a proxy for economic activity, nighttime lights has been used for various applications such as tracking [urbanization](https://www.sciencedirect.com/science/article/abs/pii/S0034425797000461) and examining impacts of [natural disasters](https://www.sciencedirect.com/science/article/abs/pii/S0143622819308525), [conflict](https://www.mdpi.com/2072-4292/10/6/858), and [infrastructure improvements](https://documents.worldbank.org/en/publication/documents-reports/documentdetail/099332404062230683/idu073a7158605532046490b712098aed9008539).
 
-This course provides an overview of using nighttime lights data, with a focus for economic applications. It covers the different sources of nighttime lights, how to query and aggregate data, and addressing data quality with nighttime lights (eg, cloud cover). The course focuses on [NASA Black Marble](https://blackmarble.gsfc.nasa.gov/) data, using the [BlackMarbleR](https://worldbank.github.io/blackmarbler/) R package to query data.
+This course provides an overview of using nighttime lights data, with a focus for economic applications. It covers the different sources of nighttime lights, how to query and aggregate data, and addressing data quality with nighttime lights (eg, cloud cover). The course focuses on [NASA Black Marble](https://blackmarble.gsfc.nasa.gov/) data, using the [BlackMarbleR](https://worldbank.github.io/blackmarbler/) (for R) and [BlackMarblePy](https://github.com/worldbank/blackmarblepy) (for Python) packages for querying data.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ The course assumes familiarity with R or Python. For an introduction to these pr
 
 1. __Introduction to Spatial Analysis__ [[R](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/01_spatial_analysis_review.html) | _Python coming later!_]: Overview of working with vector and raster spatial data in R.
 2. __Nighttime Lights for Economic Analysis__ [[PDF](https://github.com/ramarty/ntl-training/blob/main/trainings/02_into_nighttime_lights.pdf)]: Overview of nighttime light datasets and use of nighttime lights for economic and social science analysis.
-3. __Nighttime Lights Analysis in R__ [[R](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/03_intro_blackmarbler.html) | _Python coming later!_]: Provides of overview of querying and analyzing nighttime lights data in R, leveraging the [BlackMarbleR](https://worldbank.github.io/blackmarbler/) package.
+3. __Nighttime Lights Analysis in R__ [[R](https://html-preview.github.io/?url=https://raw.githubusercontent.com/ramarty/ntl-training/refs/heads/main/trainings/03_intro_blackmarbler.html) | _Python coming later!_]: Provides of overview of querying and analyzing nighttime lights data in R.
 
 ## NTL country diagnostic
 
